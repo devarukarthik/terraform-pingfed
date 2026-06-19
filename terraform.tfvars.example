@@ -1,0 +1,74 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# Never commit terraform.tfvars to source control — it contains secrets.
+
+# ─── PingFederate Connection ───────────────────────────────────────────────────
+pingfederate_host     = "https://pingfed.example.com:9999"
+pingfederate_username = "administrator"
+pingfederate_password = "changeme"
+insecure_trust_all_tls = false   # set true only for self-signed cert dev envs
+
+# ─── OAuth Clients ─────────────────────────────────────────────────────────────
+oauth_clients = {
+  # Machine-to-machine / service account client
+  "my-m2m-client" = {
+    name        = "My M2M Service Client"
+    grant_types = ["client_credentials"]
+    allowed_scopes = ["api:read", "api:write"]
+    token_endpoint_auth_method = "CLIENT_SECRET_BASIC"
+    description = "Backend service client for the data API"
+  }
+
+  # Web app client with PKCE
+  "my-web-app" = {
+    name          = "My Web Application"
+    grant_types   = ["authorization_code", "refresh_token"]
+    redirect_uris = [
+      "https://app.example.com/callback",
+      "https://app.example.com/silent-renew"
+    ]
+    allowed_scopes = ["openid", "profile", "email", "api:read"]
+    require_pkce   = true
+    token_endpoint_auth_method = "NONE"   # public client
+    description    = "Frontend SPA"
+  }
+}
+
+# ─── OAuth Scopes ──────────────────────────────────────────────────────────────
+oauth_scopes = {
+  "api:read" = {
+    description = "Read access to the API"
+  }
+  "api:write" = {
+    description = "Write access to the API"
+  }
+  "api:admin" = {
+    description = "Full administrative access to the API"
+  }
+}
+
+oauth_scope_groups = {
+  "api:full" = {
+    description = "Full API access (read + write)"
+    scopes      = ["api:read", "api:write"]
+  }
+}
+
+# ─── Access Token Managers ─────────────────────────────────────────────────────
+access_token_managers = {
+  "jwt-atm" = {
+    name           = "JWT Bearer Token Manager"
+    plugin_descriptor_ref = "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
+    token_lifetime = 60    # minutes
+    issuer         = "https://pingfed.example.com"
+    jwks_endpoint  = "/pf/JWKS"
+  }
+}
+
+# ─── Authentication Policy Contracts ──────────────────────────────────────────
+authn_policy_contracts = {
+  "default-contract" = {
+    name                = "Default Auth Contract"
+    core_attributes     = ["subject"]
+    extended_attributes = ["email", "firstName", "lastName", "groups"]
+  }
+}
