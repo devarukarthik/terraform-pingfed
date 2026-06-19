@@ -17,26 +17,49 @@ variable "pingfederate_password" {
   sensitive   = true
 }
 
+variable "pingfederate_version" {
+  description = "PingFederate product version, e.g. 12.1. Used by the provider to enable version-specific features."
+  type        = string
+  default     = "12.1"
+}
+
 variable "insecure_trust_all_tls" {
   description = "Skip TLS certificate verification (use only in dev/lab environments)"
   type        = bool
   default     = false
 }
 
+# ─── OAuth Server Settings ─────────────────────────────────────────────────────
+# Required by pingfederate_oauth_server_settings (singleton resource for scopes).
+
+variable "oauth_server_settings" {
+  description = "Core OAuth authorization server settings"
+  type = object({
+    authorization_code_entropy = optional(number, 20)
+    authorization_code_timeout = optional(number, 60)
+    refresh_rolling_interval   = optional(number, 1)
+    refresh_token_length       = optional(number, 40)
+  })
+  default = {}
+}
+
 # ─── OAuth Clients ─────────────────────────────────────────────────────────────
 
 variable "oauth_clients" {
-  description = "Map of OAuth/OIDC clients to create"
+  description = "Map of OAuth/OIDC clients to create. The map key becomes the client_id."
   type = map(object({
-    name                       = string
-    grant_types                = list(string) # e.g. ["authorization_code", "refresh_token"]
-    redirect_uris              = optional(list(string), [])
-    allowed_scopes             = optional(list(string), [])
-    client_secret              = optional(string, null)  # null = PF generates one
-    token_endpoint_auth_method = optional(string, "CLIENT_SECRET_BASIC")
-    require_pkce               = optional(bool, false)
-    bypass_approval_page       = optional(bool, false)
-    description                = optional(string, "")
+    name           = string
+    grant_types    = list(string) # UPPERCASE: AUTHORIZATION_CODE, CLIENT_CREDENTIALS, REFRESH_TOKEN, etc.
+    redirect_uris  = optional(list(string), [])
+    allowed_scopes = optional(list(string), [])
+
+    # client_auth.type: NONE | SECRET | CERTIFICATE | PRIVATE_KEY_JWT
+    client_auth_type = optional(string, "SECRET")
+    client_secret    = optional(string, null) # null = PF generates one
+
+    require_pkce         = optional(bool, false)
+    bypass_approval_page = optional(bool, false)
+    description          = optional(string, "")
   }))
   default = {}
 }
@@ -44,16 +67,16 @@ variable "oauth_clients" {
 # ─── OAuth Scopes ──────────────────────────────────────────────────────────────
 
 variable "oauth_scopes" {
-  description = "Map of custom OAuth scopes to register"
+  description = "Map of common OAuth scopes. Key = scope name."
   type = map(object({
-    description  = string
-    dynamic      = optional(bool, false)
+    description = string
+    dynamic     = optional(bool, false)
   }))
   default = {}
 }
 
 variable "oauth_scope_groups" {
-  description = "Map of OAuth scope groups"
+  description = "Map of OAuth scope groups. Key = group name."
   type = map(object({
     description = string
     scopes      = list(string)
@@ -64,13 +87,25 @@ variable "oauth_scope_groups" {
 # ─── Access Token Managers ─────────────────────────────────────────────────────
 
 variable "access_token_managers" {
-  description = "Map of access token managers to configure"
+  description = "Map of OAuth access token managers. Key becomes the manager_id."
   type = map(object({
-    name          = string
-    plugin_descriptor_ref = string  # e.g. "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
-    token_lifetime = optional(number, 120) # minutes
-    jwks_endpoint = optional(string, null)
-    issuer        = optional(string, null)
+    name                  = string
+    plugin_descriptor_ref = string # plugin class ID
+    token_lifetime        = optional(number, 120)
+    issuer                = optional(string, null)
+    jwks_endpoint         = optional(string, null)
+
+    # Symmetric key for JWT signing (required if using symmetric key signing)
+    active_symmetric_key_id    = optional(string, "")
+    symmetric_key_id           = optional(string, null)
+    symmetric_key_value        = optional(string, null) # sensitive — use TF_VAR or vault
+
+    # JWE settings
+    jwe_algorithm                  = optional(string, "dir")
+    jwe_content_encryption_algorithm = optional(string, "A192CBC-HS384")
+
+    # Extended token attributes
+    extended_attributes = optional(list(string), [])
   }))
   default = {}
 }
@@ -78,11 +113,11 @@ variable "access_token_managers" {
 # ─── Authentication Policy Contracts ──────────────────────────────────────────
 
 variable "authn_policy_contracts" {
-  description = "Map of authentication policy contracts"
+  description = "Map of authentication policy contracts. Key = contract key (used internally)."
   type = map(object({
-    name             = string
-    core_attributes  = optional(list(string), ["subject"])
+    name                = string
     extended_attributes = optional(list(string), [])
+    # Note: core_attributes (e.g. "subject") are read-only and set by PingFederate automatically
   }))
   default = {}
 }

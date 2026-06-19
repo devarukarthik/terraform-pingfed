@@ -5,23 +5,23 @@ output "oauth_client_ids" {
   value       = { for k, v in pingfederate_oauth_client.clients : k => v.client_id }
 }
 
-# ─── OAuth Scopes ──────────────────────────────────────────────────────────────
+# ─── OAuth Server Settings (Scopes) ───────────────────────────────────────────
 
 output "oauth_scope_names" {
-  description = "List of registered custom OAuth scope names"
-  value       = [for k, v in pingfederate_oauth_server_settings_scopes_common_scope.scopes : v.name]
+  description = "List of registered common OAuth scope names"
+  value       = [for s in pingfederate_oauth_server_settings.main.scopes : s.name]
 }
 
 # ─── Access Token Managers ─────────────────────────────────────────────────────
 
 output "access_token_manager_ids" {
-  description = "Map of ATM key → ID for all created access token managers"
-  value       = { for k, v in pingfederate_access_token_manager.atms : k => v.id }
+  description = "Map of ATM key → manager_id for all created access token managers"
+  value       = { for k, v in pingfederate_oauth_access_token_manager.atms : k => v.manager_id }
 }
 
 # ─── Authentication Policy Contracts ──────────────────────────────────────────
 
 output "authn_policy_contract_ids" {
-  description = "Map of contract key → ID for all created authentication policy contracts"
+  description = "Map of contract key → id for all created authentication policy contracts"
   value       = { for k, v in pingfederate_authentication_policy_contract.contracts : k => v.id }
 }

@@ -2,34 +2,46 @@
 # Never commit terraform.tfvars to source control — it contains secrets.
 
 # ─── PingFederate Connection ───────────────────────────────────────────────────
-pingfederate_host     = "https://pingfed.example.com:9999"
-pingfederate_username = "administrator"
-pingfederate_password = "changeme"
+pingfederate_host      = "https://pingfed.example.com:9999"
+pingfederate_username  = "administrator"
+pingfederate_password  = "changeme"
+pingfederate_version   = "12.1"  # match your actual PF version
 insecure_trust_all_tls = false   # set true only for self-signed cert dev envs
+
+# ─── OAuth Server Settings ─────────────────────────────────────────────────────
+# These are required by PingFederate's OAuth server settings resource.
+# Defaults are provided in variables.tf — only override if needed.
+oauth_server_settings = {
+  authorization_code_entropy = 20
+  authorization_code_timeout = 60
+  refresh_rolling_interval   = 1
+  refresh_token_length       = 40
+}
 
 # ─── OAuth Clients ─────────────────────────────────────────────────────────────
 oauth_clients = {
   # Machine-to-machine / service account client
   "my-m2m-client" = {
-    name        = "My M2M Service Client"
-    grant_types = ["client_credentials"]
-    allowed_scopes = ["api:read", "api:write"]
-    token_endpoint_auth_method = "CLIENT_SECRET_BASIC"
-    description = "Backend service client for the data API"
+    name             = "My M2M Service Client"
+    grant_types      = ["CLIENT_CREDENTIALS"]
+    allowed_scopes   = ["api:read", "api:write"]
+    client_auth_type = "SECRET"
+    # client_secret  = "mysecret"  # omit to let PF generate one
+    description      = "Backend service client for the data API"
   }
 
-  # Web app client with PKCE
+  # Web app client with PKCE (public client — no secret)
   "my-web-app" = {
-    name          = "My Web Application"
-    grant_types   = ["authorization_code", "refresh_token"]
-    redirect_uris = [
+    name             = "My Web Application"
+    grant_types      = ["AUTHORIZATION_CODE", "REFRESH_TOKEN"]
+    redirect_uris    = [
       "https://app.example.com/callback",
       "https://app.example.com/silent-renew"
     ]
-    allowed_scopes = ["openid", "profile", "email", "api:read"]
-    require_pkce   = true
-    token_endpoint_auth_method = "NONE"   # public client
-    description    = "Frontend SPA"
+    allowed_scopes   = ["openid", "profile", "email", "api:read"]
+    require_pkce     = true
+    client_auth_type = "NONE"   # public client
+    description      = "Frontend SPA"
   }
 }
 
@@ -56,11 +68,18 @@ oauth_scope_groups = {
 # ─── Access Token Managers ─────────────────────────────────────────────────────
 access_token_managers = {
   "jwt-atm" = {
-    name           = "JWT Bearer Token Manager"
+    name                  = "JWT Access Token Manager"
     plugin_descriptor_ref = "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
-    token_lifetime = 60    # minutes
-    issuer         = "https://pingfed.example.com"
-    jwks_endpoint  = "/pf/JWKS"
+    token_lifetime        = 120
+    issuer                = "https://pingfed.example.com"
+    jwks_endpoint         = "/pf/JWKS"
+
+    # Symmetric key for JWT signing — use TF_VAR_access_token_managers or a vault
+    active_symmetric_key_id = "jwtSymmetricKey1"
+    symmetric_key_id        = "jwtSymmetricKey1"
+    symmetric_key_value     = "changeme-base64url-encoded-key"
+
+    extended_attributes = ["email", "firstName", "lastName", "groups"]
   }
 }
 
@@ -68,7 +87,7 @@ access_token_managers = {
 authn_policy_contracts = {
   "default-contract" = {
     name                = "Default Auth Contract"
-    core_attributes     = ["subject"]
     extended_attributes = ["email", "firstName", "lastName", "groups"]
+    # core_attributes like "subject" are managed by PF automatically
   }
 }
