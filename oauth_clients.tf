@@ -23,7 +23,8 @@ resource "pingfederate_oauth_client" "clients" {
   restrict_scopes   = length(each.value.allowed_scopes) > 0
   restricted_scopes = each.value.allowed_scopes
 
-  # client_auth is an object attribute, not a block
+  # Consistent object shape required for Terraform ternary.
+  # secret is ignored by PF when type=NONE; required (non-null) when type=SECRET.
   client_auth = {
     type   = each.value.client_auth_type
     secret = each.value.client_secret

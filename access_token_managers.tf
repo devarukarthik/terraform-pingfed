@@ -11,7 +11,8 @@
 resource "pingfederate_oauth_access_token_manager" "atms" {
   for_each = var.access_token_managers
 
-  manager_id = each.key
+  # manager_id only allows [a-zA-Z0-9] — use the explicit field, not the map key
+  manager_id = each.value.manager_id
   name       = each.value.name
 
   plugin_descriptor_ref = {
@@ -31,7 +32,7 @@ resource "pingfederate_oauth_access_token_manager" "atms" {
         },
         {
           name  = "JWS Algorithm"
-          value = ""
+          value = each.value.jws_algorithm
         },
         {
           name  = "Active Symmetric Key ID"

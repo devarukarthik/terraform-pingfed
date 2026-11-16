@@ -68,6 +68,7 @@ oauth_scope_groups = {
 # ─── Access Token Managers ─────────────────────────────────────────────────────
 access_token_managers = {
   "jwt-atm" = {
+    manager_id            = "jwtATM"  # alphanumeric only — no hyphens/underscores allowed by PF
     name                  = "JWT Access Token Manager"
     plugin_descriptor_ref = "com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin"
     token_lifetime        = 120

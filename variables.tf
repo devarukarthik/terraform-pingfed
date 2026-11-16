@@ -87,8 +87,9 @@ variable "oauth_scope_groups" {
 # ─── Access Token Managers ─────────────────────────────────────────────────────
 
 variable "access_token_managers" {
-  description = "Map of OAuth access token managers. Key becomes the manager_id."
+  description = "Map of OAuth access token managers. Key is a label; manager_id (alphanumeric only) is the actual PF ID."
   type = map(object({
+    manager_id            = string  # must match [a-zA-Z0-9] only — no hyphens or underscores
     name                  = string
     plugin_descriptor_ref = string # plugin class ID
     token_lifetime        = optional(number, 120)
@@ -100,9 +101,10 @@ variable "access_token_managers" {
     symmetric_key_id           = optional(string, null)
     symmetric_key_value        = optional(string, null) # sensitive — use TF_VAR or vault
 
-    # JWE settings
-    jwe_algorithm                  = optional(string, "dir")
-    jwe_content_encryption_algorithm = optional(string, "A192CBC-HS384")
+    # Signing / encryption settings
+    jws_algorithm                    = optional(string, "HS256") # e.g. HS256, RS256, "" for none
+    jwe_algorithm                    = optional(string, "")      # e.g. "dir", "" to disable
+    jwe_content_encryption_algorithm = optional(string, "")      # e.g. "A192CBC-HS384", "" to disable
 
     # Extended token attributes
     extended_attributes = optional(list(string), [])
